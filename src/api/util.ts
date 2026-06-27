@@ -104,6 +104,7 @@ async function wrapHttpError(e: unknown): Promise<never> {
 		return Promise.reject({
 			headers: e.response.headers,
 			statusCode: e.response.statusCode,
+			body: e.response.body,
 			error: e,
 		})
 	} else {
@@ -111,6 +112,7 @@ async function wrapHttpError(e: unknown): Promise<never> {
 		return Promise.reject({
 			headers: {},
 			statusCode: 500,
+			body: undefined,
 			error: e,
 		})
 	}
@@ -130,6 +132,7 @@ export interface ApiError {
 	headers: IncomingHttpHeaders
 	statusCode: number
 	// message: any
+	body?: unknown
 	error: Error
 }
 
