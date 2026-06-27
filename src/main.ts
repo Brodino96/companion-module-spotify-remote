@@ -170,7 +170,38 @@ class SpotifyInstance extends InstanceBase<DeviceConfig> implements SpotifyInsta
 				})
 				.catch((err) => {
 					console.log(err)
-					this.log('debug', `Failed to get access token: ${err?.message ?? err?.toString() ?? err}`)
+					const detail =
+						typeof err?.body === 'string'
+							? err.body
+							: err?.body
+								? JSON.stringify(err.body)
+								: (err?.message ?? err?.toString() ?? err)
+					this.log('error', `Failed to get access token (HTTP ${err?.statusCode ?? '?'}): ${detail}`)
+
+					// The authorization code is single-use and short-lived, and it has already
+					// been consumed/cleared above. Reset any stale auth state and hand the user a
+					// fresh authorize URL so they can immediately retry instead of being stuck on
+					// "Connecting" with no way forward.
+					this.accessToken = null
+					delete this.config.refreshToken
+
+					if (this.config.clientId && this.config.redirectUri) {
+						this.config.authURL = GenerateAuthorizeUrl(
+							this.config.clientId,
+							this.config.redirectUri,
+							AUTH_SCOPES,
+							'',
+						).toString()
+						this.saveConfig(this.config)
+						this.log('info', `Authorization failed - please re-authorize using a NEW code from: ${this.config.authURL}`)
+					} else {
+						this.saveConfig(this.config)
+					}
+
+					this.updateStatus(
+						InstanceStatus.ConnectionFailure,
+						'Authorization failed - re-authorize with a new code (see log for URL)',
+					)
 				})
 		} else if (this.config.refreshToken) {
 			this.updateStatus(InstanceStatus.Connecting)
