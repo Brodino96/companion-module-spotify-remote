@@ -137,10 +137,19 @@ class SpotifyInstance extends InstanceBase<DeviceConfig> implements SpotifyInsta
 		} else if (this.config.code) {
 			this.updateStatus(InstanceStatus.Connecting)
 
-			// Fetch then clear the code
-			const code = this.config.code.trim()
+			// Fetch then clear the code.
+			// Strip ALL whitespace (not just the ends) in case the paste picked up
+			// stray spaces/newlines, and handle the case where a full redirect URL
+			// (containing ?code=...) was pasted instead of just the code value.
+			let code = this.config.code.replace(/\s+/g, '')
+			const codeMatch = code.match(/[?&]code=([^&]+)/)
+			if (codeMatch) {
+				code = decodeURIComponent(codeMatch[1])
+			}
 			delete this.config.code
 			this.saveConfig(this.config)
+
+			this.log('debug', `Exchanging authorization code (length ${code.length})`)
 
 			// convert code to access token
 			authorizationCodeGrant(this.config.clientId, this.config.clientSecret, this.config.redirectUri, code)
